@@ -11,6 +11,7 @@ wandb/*
 safepo/multi_agent/wandb/*
 # C extensions
 *.so
+*.out
 *.png
 *.jpeg
 *.jpg

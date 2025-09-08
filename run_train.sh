@@ -1,0 +1,1 @@
+sbatch /home/razshmue/workspace/Safe-Policy-Optimization-Modified/example.sbatch

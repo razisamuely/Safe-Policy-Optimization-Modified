@@ -23,7 +23,7 @@ export SC2PATH="$HOME/StarCraftII"
 conda activate safepo
 
 # Go to project directory
-cd /home/razshmue/workspace/private-mamba/
+cd /home/razshmue/workspace/Safe-Policy-Optimization-Modified
 
 # Run the training script
 python safepo/multi_agent/macpo.py --task 3m --total-steps 10000 --cost-type dead_allies
