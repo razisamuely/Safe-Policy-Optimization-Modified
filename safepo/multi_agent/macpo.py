@@ -485,7 +485,7 @@ class Runner:
 
         self.num_agents = self.envs.num_agents
 
-        wandb.init(project="private-mamba", entity="raz-shmueli-corsound-ai")
+        
         wandb.define_metric("TotalSteps")
         wandb.define_metric("reward", step_metric="TotalSteps") 
         wandb.define_metric("cost", step_metric="TotalSteps")
@@ -921,6 +921,15 @@ if __name__ == '__main__':
     set_np_formatting()
     args, cfg_env, cfg_train = multi_agent_args(algo="macpo")
     set_seed(cfg_train.get("seed", -1), cfg_train.get("torch_deterministic", False))
+    current_run_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+
+    wandb.init(
+        project="private-mamba", 
+        entity="raz-shmueli-corsound-ai",
+        name=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
+        id=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
+    )
+
     if args.write_terminal:
         train(args=args, cfg_train=cfg_train)
     else:
@@ -952,5 +961,4 @@ if __name__ == '__main__':
                 sys.stderr = f_error
                 train(args=args, cfg_train=cfg_train)
 
-
-# python macpo.py --task 3m --total-steps 10000 --num-envs 1
+# python macpo.py --task 3m --total-steps 10000 --num-envs 1 --cost-type dead_allies

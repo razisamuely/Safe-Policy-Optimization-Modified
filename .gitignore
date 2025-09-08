@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 wandb/*
+safepo/multi_agent/wandb/*
 # C extensions
 *.so
 *.png

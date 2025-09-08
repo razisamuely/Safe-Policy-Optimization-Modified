@@ -80,8 +80,8 @@ isaac_gym_map = {
 }
 
 smac_map = {
-    "3m": {"map_name": "3m", "cost_type": "dead_allies"}, # dead_allies
-    "8m": {"map_name": "8m", "cost_type": "dead_allies"},
+    "3m": {"map_name": "3m", "cost_type": None}, # dead_allies
+    "8m": {"map_name": "8m", "cost_type": None},
     "25m": {"map_name": "25m", "cost_type": "damage"},
     "2s3z": {"map_name": "2s3z", "cost_type": "damage"},
     "3s5z": {"map_name": "3s5z", "cost_type": "damage"},
@@ -223,6 +223,8 @@ def multi_agent_args(algo):
         {"name": "--total-steps", "type": int, "default": None, "help": "Total timesteps of the experiments"},
         {"name": "--num-envs", "type": int, "default": None, "help": "The number of parallel game environments"},
         {"name": "--randomize", "type": bool, "default": False, "help": "Wheather to randomize the environments' initial states"},
+        {"name": "--cost-type", "type": str, "default": None, "help": "Type of cost to use in SMAC environments (e.g., dead_allies, damage, proximity, etc.)"},
+
     ]
     # Create argument parser
     parser = argparse.ArgumentParser(description="RL Policy")
