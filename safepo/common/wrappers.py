@@ -370,11 +370,11 @@ class ShareVecEnv(ABC):
         else:
             raise NotImplementedError
 
+
     def get_images(self):
-        """
-        Return RGB images from each environment
-        """
-        raise NotImplementedError
+        # Assuming the first environment has a renderable view
+        screen = self.envs[0].render(mode="rgb_array")
+        return [screen for _ in range(len(self.envs))]
 
     @property
     def unwrapped(self):
@@ -521,5 +521,10 @@ class ShareDummyVecEnv(ShareVecEnv):
         )
         return obs, share_obs, available_actions
 
-    def render(self):
-        return self.envs[0].render()
+    def render(self, mode='human'):
+        return self.envs[0].render(mode=mode)
+    
+    def get_images(self):
+        # Assuming the first environment has a renderable view
+        screen = self.envs[0].render(mode="rgb_array")
+        return [screen for _ in range(len(self.envs))]

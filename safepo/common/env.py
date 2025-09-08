@@ -221,3 +221,24 @@ def make_ma_isaac_env(args, cfg, cfg_train, sim_params, agent_index):
         raise NotImplementedError
 
     return env
+
+
+def make_ma_smac_env(map_name, cost_type, seed, cfg_train):
+    """
+    Creates and returns a multi-agent SMAC environment.
+    """
+    def get_env_fn(rank):
+        def init_env():
+            from smac_wrapper import SMACShareEnv
+            env = SMACShareEnv(
+                map_name=map_name,
+                cost_type=cost_type,
+                seed=seed + rank * 1000
+            )
+            return env
+        return init_env
+
+    if cfg_train['n_rollout_threads'] == 1:
+        return ShareDummyVecEnv([get_env_fn(0)], cfg_train['device'])
+    else:
+        return ShareSubprocVecEnv([get_env_fn(i) for i in range(cfg_train['n_rollout_threads'])])

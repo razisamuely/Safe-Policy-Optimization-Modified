@@ -15,10 +15,12 @@
 
 
 import torch.nn as nn
+import torch
+from safepo.utils.distributions import DiagGaussian, Categorical
 
-from safepo.utils.distributions import DiagGaussian
 
 
+    
 class ACTLayer(nn.Module):
     """
     MLP Module to compute actions.
@@ -29,11 +31,15 @@ class ACTLayer(nn.Module):
     """
     def __init__(self, action_space, inputs_dim, use_orthogonal, gain, args=None):
         super(ACTLayer, self).__init__()
+        self.action_type = action_space.__class__.__name__
         self.mixed_action = False
         self.multi_discrete = False
-        self.action_type = action_space.__class__.__name__
-        action_dim = action_space.shape[0]
-        self.action_out = DiagGaussian(inputs_dim, action_dim, use_orthogonal, gain, args)
+        if self.action_type == "Discrete":
+            action_dim = action_space.n
+            self.action_out = Categorical(inputs_dim, action_dim, use_orthogonal, gain, args)
+        else:
+            action_dim = action_space.shape[0]
+            self.action_out = DiagGaussian(inputs_dim, action_dim, use_orthogonal, gain, args)
     
     def forward(self, x, available_actions=None, deterministic=False):
         """
@@ -86,8 +92,25 @@ class ACTLayer(nn.Module):
         :return dist_entropy: (torch.Tensor) action distribution entropy for the given inputs.
         """
         action_logits = self.action_out(x, available_actions)
-        action_mu = action_logits.mean
-        action_std = action_logits.stddev
+        
+        # Check for NaN values in the logits and handle them
+        if self.action_type == "Discrete" and hasattr(action_logits, 'logits'):
+            if torch.isnan(action_logits.logits).any():
+                print(f"Warning: NaN detected in action logits, shape: {action_logits.logits.shape}")
+                print(f"Input x stats - mean: {x.mean():.6f}, std: {x.std():.6f}, min: {x.min():.6f}, max: {x.max():.6f}")
+                print(f"Input x has NaN: {torch.isnan(x).any()}")
+                # Create new logits with small random values
+                new_logits = torch.randn_like(action_logits.logits) * 0.01
+                action_logits = type(action_logits)(logits=new_logits)
+                print("Reinitialized action_logits to small random values")
+    
+        if self.action_type == "Discrete":
+            action_mu = None
+            action_std = None
+        else:
+            action_mu = action_logits.mean
+            action_std = action_logits.stddev
+            
         action_log_probs = action_logits.log_probs(action)
         all_probs = None
         if active_masks is not None:

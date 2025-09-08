@@ -7,10 +7,16 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+wandb/*
 # C extensions
 *.so
-
+*.png
+*.jpeg
+*.jpg
+*.gif
+*.yml
+venv/*
+safety-gymnasium-main/*
 # Distribution / packaging
 .Python
 build/

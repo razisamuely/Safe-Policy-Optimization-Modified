@@ -79,6 +79,19 @@ isaac_gym_map = {
     "FreightFrankaPickAndPlace": "freight_franka_pick_and_place",
 }
 
+smac_map = {
+    "3m": {"map_name": "3m", "cost_type": "dead_allies"}, # dead_allies
+    "8m": {"map_name": "8m", "cost_type": "dead_allies"},
+    "25m": {"map_name": "25m", "cost_type": "damage"},
+    "2s3z": {"map_name": "2s3z", "cost_type": "damage"},
+    "3s5z": {"map_name": "3s5z", "cost_type": "damage"},
+    "1c3s5z": {"map_name": "1c3s5z", "cost_type": "damage"},
+    "3s_vs_5z": {"map_name": "3s_vs_5z", "cost_type": "damage"},
+    "MMM": {"map_name": "MMM", "cost_type": "damage"},
+    "so_many_baneling": {"map_name": "so_many_baneling", "cost_type": "proximity"},
+    "3s5z_vs_3s6z": {"map_name": "3s5z_vs_3s6z", "cost_type": "damage"},
+}
+
 def set_np_formatting():
     np.set_printoptions(edgeitems=30, infstr='inf',
                         linewidth=4000, nanstr='nan', precision=2,
@@ -202,7 +215,7 @@ def multi_agent_args(algo):
         {"name": "--experiment", "type": str, "default": "Base", "help": "Experiment name"},
         {"name": "--seed", "type": int, "default":0, "help": "Random seed"},
         {"name": "--model-dir", "type": str, "default": "", "help": "Choose a model dir"},
-        {"name": "--cost-limit", "type": float, "default": 25.0, "help": "cost_lim"},
+        {"name": "--cost-limit", "type": float, "default": 0, "help": "cost_lim"},
         {"name": "--device", "type": str, "default": "cpu", "help": "The device to run the model on"},
         {"name": "--device-id", "type": int, "default": 0, "help": "The device id to run the model on"},
         {"name": "--write-terminal", "type": lambda x: bool(strtobool(x)), "default": True, "help": "Toggles terminal logging"},
@@ -271,6 +284,10 @@ def multi_agent_args(algo):
                 cfg_env["task"] = {"randomize": False}
     elif args.task in multi_agent_velocity_map.keys() or args.task in multi_agent_goal_tasks:
         pass
+    elif args.task in smac_map.keys():
+        cfg_train.update(cfg_train.get("mamujoco"))  # Use similar config as mujoco
+        args.map_name = smac_map[args.task]["map_name"] 
+        args.cost_type = smac_map[args.task]["cost_type"]
     else:
         warn_task_name()
 

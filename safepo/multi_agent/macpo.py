@@ -25,13 +25,13 @@ import torch.nn as nn
 import os
 import sys
 import time
-
-from safepo.common.env import make_ma_mujoco_env, make_ma_isaac_env, make_ma_multi_goal_env
+import wandb
+from safepo.common.env import make_ma_mujoco_env, make_ma_isaac_env, make_ma_multi_goal_env, make_ma_smac_env
 from safepo.common.popart import PopArt
 from safepo.common.model import MultiAgentActor as Actor, MultiAgentCritic as Critic
 from safepo.common.buffer import SeparatedReplayBuffer
 from safepo.common.logger import EpochLogger
-from safepo.utils.config import multi_agent_args, parse_sim_params, set_np_formatting, set_seed, multi_agent_velocity_map, isaac_gym_map, multi_agent_goal_tasks
+from safepo.utils.config import multi_agent_args, parse_sim_params, set_np_formatting, set_seed, multi_agent_velocity_map, isaac_gym_map, multi_agent_goal_tasks, smac_map
 
 
 def check(input):
@@ -68,6 +68,10 @@ class MACPO_Policy():
     def get_actions(self, cent_obs, obs, rnn_states_actor, rnn_states_critic, masks, available_actions=None,
                     deterministic=False, rnn_states_cost=None):
         actions, action_log_probs, rnn_states_actor = self.actor(obs, rnn_states_actor, masks, available_actions, deterministic)
+
+        if hasattr(self.act_space, 'n'):
+            actions = actions.long()
+
 
         values, rnn_states_critic = self.critic(cent_obs, rnn_states_critic, masks)
         cost_preds, rnn_states_cost = self.cost_critic(cent_obs, rnn_states_cost, masks)
@@ -151,19 +155,26 @@ class MACPO_Trainer():
             index += params_length
 
     def kl_divergence(self, obs, rnn_states, action, masks, available_actions, active_masks, new_actor, old_actor):
+        if hasattr(self.policy.act_space, 'n'):  # Discrete
+            new_log_probs, _, _, _ = new_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions, active_masks)
+            old_log_probs, _, _, _ = old_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions, active_masks)
+            
+            new_probs = torch.exp(new_log_probs)
+            old_probs = torch.exp(old_log_probs.detach())
+            kl = (old_probs * (old_log_probs.detach() - new_log_probs)).sum(1, keepdim=True)
+        else:  # Continuous
+            _, _, mu, std = new_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions, active_masks)
+            _, _, mu_old, std_old = old_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions, active_masks)
+            
+            logstd = torch.log(std)
+            mu_old = mu_old.detach()
+            std_old = std_old.detach()
+            logstd_old = torch.log(std_old)
 
-        _, _, mu, std = new_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions, active_masks)
-        _, _, mu_old, std_old = old_actor.evaluate_actions(obs, rnn_states, action, masks, available_actions,
-                                                           active_masks)
-        logstd = torch.log(std)
-        mu_old = mu_old.detach()
-        std_old = std_old.detach()
-        logstd_old = torch.log(std_old)
-
-        kl = logstd_old - logstd + (std_old.pow(2) + (mu_old - mu).pow(2)) / \
-             (1e-8 + 2.0 * std.pow(2)) - 0.5
-
-        return kl.sum(1, keepdim=True)
+            kl = logstd_old - logstd + (std_old.pow(2) + (mu_old - mu).pow(2)) / (1e-8 + 2.0 * std.pow(2)) - 0.5
+            kl = kl.sum(1, keepdim=True)
+        
+        return kl
 
     def conjugate_gradient(self, actor, obs, rnn_states, action, masks, available_actions, active_masks, b, nsteps,
                            residual_tol=1e-10):
@@ -237,7 +248,13 @@ class MACPO_Trainer():
             rescale_constraint_val = 1e-8
 
         ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
-        ratio = torch.prod(ratio, dim=-1, keepdim=True)
+        if hasattr(self.policy.act_space, 'n'):  # Discrete
+            # For discrete, ratio is already computed correctly
+            pass
+        else:  # Continuous
+            if action_log_probs.dim() > 1 and action_log_probs.shape[-1] > 1:
+                ratio = torch.prod(ratio, dim=-1, keepdim=True)
+
 
         reward_loss = torch.sum(ratio * factor_batch * adv_targ, dim=-1, keepdim=True).mean()
         reward_loss = - reward_loss
@@ -323,6 +340,17 @@ class MACPO_Trainer():
         x_a = (1. / (lam + 1e-8)) * (g_step_dir + nu * b_step_dir)
         x_b = (nu * b_step_dir)
         x = x_a if optim_case > 0 else x_b
+        
+        # Check for NaN in step direction and handle it
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            print("Warning: NaN/Inf detected in step direction x, using small random direction")
+            print(f"g_step_dir has NaN: {torch.isnan(g_step_dir).any()}")
+            print(f"b_step_dir has NaN: {torch.isnan(b_step_dir).any()}")
+            print(f"lam: {lam}, nu: {nu}")
+            x = torch.randn_like(x) * 1e-6  # Small random direction
+        
+        # Additional safety: clip the step direction
+        x = torch.clamp(x, -1.0, 1.0)
 
         reward_loss = reward_loss.detach()
         cost_loss = cost_loss.detach()
@@ -339,12 +367,30 @@ class MACPO_Trainer():
 
         flag = False
         fraction_coef = self.config["fraction_coef"]
+        
+        # Initialize variables to prevent UnboundLocalError if all steps are skipped
+        kl = torch.tensor(0.0, device=self.config["device"])
+        loss_improve = torch.tensor(0.0, device=self.config["device"])
+        ratio = torch.tensor(1.0, device=self.config["device"])
+        
         for i in range(self.config["searching_steps"]):
             x_norm = torch.norm(x)
             if x_norm > 0.5:
                 x = x * 0.5 / x_norm
 
             new_params = params - fraction_coef * (fraction**i) * x
+            
+            # Check for NaN or infinite values in parameters
+            if torch.isnan(new_params).any() or torch.isinf(new_params).any():
+                print(f"Warning: Invalid parameters detected at step {i}")
+                print(f"params stats - mean: {params.mean():.6f}, std: {params.std():.6f}")
+                print(f"x stats - mean: {x.mean():.6f}, std: {x.std():.6f}")
+                print(f"fraction**i: {fraction**i}, fraction_coef: {fraction_coef}")
+                continue
+                
+            # Clip parameters to prevent extreme values
+            new_params = torch.clamp(new_params, -10.0, 10.0)
+            
             self.update_model(self.policy.actor, new_params)
             values, action_log_probs, dist_entropy, new_cost_values, action_mu, action_std = self.policy.evaluate_actions(
                 share_obs_batch, obs_batch, rnn_states_batch, rnn_states_critic_batch,\
@@ -439,6 +485,12 @@ class Runner:
 
         self.num_agents = self.envs.num_agents
 
+        wandb.init(project="private-mamba", entity="raz-shmueli-corsound-ai")
+        wandb.define_metric("TotalSteps")
+        wandb.define_metric("reward", step_metric="TotalSteps") 
+        wandb.define_metric("cost", step_metric="TotalSteps")
+        wandb.define_metric("score", step_metric="TotalSteps")
+
         torch.autograd.set_detect_anomaly(True)
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.benchmark = True
@@ -491,6 +543,7 @@ class Runner:
 
             done_episodes_rewards = []
             done_episodes_costs = []
+            win_episode = []
 
             for step in range(self.config["episode_length"]):
                 # Sample actions
@@ -513,6 +566,11 @@ class Runner:
                         done_episodes_costs.append(train_episode_costs[:, t].clone())
                         train_episode_costs[:, t] = 0
 
+                        # if smac env, then also log win or not
+                        if self.config['env_name'] in smac_map.keys():
+                            if isinstance(infos[t], list) and len(infos[t]) > 0 and 'battle_won' in infos[t][0]:
+                                win_episode.append(sum([i['battle_won'] for i in infos[t]])/len(infos[t]))
+
                 done_episodes_costs_aver = train_episode_costs.mean()
                 data = obs, share_obs, rewards, costs, dones, infos, \
                        values, actions, action_log_probs, \
@@ -533,22 +591,41 @@ class Runner:
                 eval_rewards, eval_costs = self.eval()
 
             if len(done_episodes_rewards) != 0:
-                aver_episode_rewards = torch.stack(done_episodes_rewards).mean()
+                # Store individual episode rewards for proper statistics computation
+                for episode_reward in done_episodes_rewards:
+                    self.logger.store(**{"Metrics/EpRet": episode_reward.item()})
+                    
+                for episode_cost in done_episodes_costs:
+                    self.logger.store(**{"Metrics/EpCost": episode_cost.item()})
+
+                for win in win_episode:
+                    if 0 <= win <= 1:
+                        self.logger.store(**{"Metrics/WinRate": win})
+                    else:
+                        raise ValueError("Win rate should be between 0 and 1.")
+                    
+                # Store evaluation metrics (currently 0 since eval is disabled)
+                self.logger.store(**{
+                    "Eval/EpRet": eval_rewards,
+                    "Eval/EpCost": eval_costs,
+                })
+                
+                wandb.log({
+                    "score": np.mean([r.item() for r in done_episodes_rewards]),
+                    "cost": np.mean([c.item() for c in done_episodes_costs]),
+                    "reward": np.mean(win_episode) if win_episode else 0
+                                                    })
+                # Compute average costs for constraint handling
                 aver_episode_costs = torch.stack(done_episodes_costs).mean()
                 self.return_aver_cost(aver_episode_costs)
-                self.logger.store(
-                    **{
-                        "Metrics/EpRet": aver_episode_rewards.item(),
-                        "Metrics/EpCost": aver_episode_costs.item(),
-                        "Eval/EpRet": eval_rewards,
-                        "Eval/EpCost": eval_costs,
-                    }
-                )
                 
                 self.logger.log_tabular("Metrics/EpRet", min_and_max=True, std=True)
                 self.logger.log_tabular("Metrics/EpCost", min_and_max=True, std=True)
                 self.logger.log_tabular("Eval/EpRet")
                 self.logger.log_tabular("Eval/EpCost")
+                if self.config['env_name'] in smac_map.keys():
+                    self.logger.log_tabular("Metrics/WinRate")
+                    win_episode.clear()
                 self.logger.log_tabular("Train/Epoch", episode)
                 self.logger.log_tabular("Train/TotalSteps", total_num_steps)
                 self.logger.log_tabular("Loss/Loss_reward_critic")
@@ -812,6 +889,23 @@ def train(args, cfg_train):
         cfg_eval["seed"] = args.seed + 10000
         cfg_eval["n_rollout_threads"] = cfg_eval["n_eval_rollout_threads"]
         eval_env = make_ma_multi_goal_env(task=args.task, seed=args.seed + 10000, cfg_train=cfg_eval)
+
+    elif args.task in smac_map.keys():  # Add this block
+        env = make_ma_smac_env(
+            map_name=args.map_name,
+            cost_type=args.cost_type,
+            seed=args.seed,
+            cfg_train=cfg_train
+        )
+        cfg_eval = copy.deepcopy(cfg_train)
+        cfg_eval["seed"] = args.seed + 10000
+        cfg_eval["n_rollout_threads"] = cfg_eval["n_eval_rollout_threads"]
+        eval_env = make_ma_smac_env(
+            map_name=args.map_name,
+            cost_type=args.cost_type,
+            seed=cfg_eval['seed'],
+            cfg_train=cfg_eval
+        )
     else: 
         raise NotImplementedError
     
@@ -857,3 +951,6 @@ if __name__ == '__main__':
             ) as f_error:
                 sys.stderr = f_error
                 train(args=args, cfg_train=cfg_train)
+
+
+# python macpo.py --task 3m --total-steps 10000 --num-envs 1

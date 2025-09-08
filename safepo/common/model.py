@@ -72,13 +72,16 @@ class Actor(nn.Module):
 
     def __init__(self, obs_dim: int, act_dim: int, hidden_sizes: list = [64, 64]):
         super().__init__()
-        self.mean = build_mlp_network([obs_dim]+hidden_sizes+[act_dim])
-        self.log_std = nn.Parameter(torch.zeros(act_dim), requires_grad=True)
+        # self.mean = build_mlp_network([obs_dim]+hidden_sizes+[act_dim])
+        # self.log_std = nn.Parameter(torch.zeros(act_dim), requires_grad=True)
+        self.logits = build_mlp_network([obs_dim] + hidden_sizes + [act_dim])
 
     def forward(self, obs: torch.Tensor):
-        mean = self.mean(obs)
-        std = torch.exp(self.log_std)
-        return Normal(mean, std)
+        # mean = self.mean(obs)
+        # std = torch.exp(self.log_std)
+        # return Normal(mean, std)
+        logits = self.logits(obs)
+        return torch.distributions.Categorical(logits=logits)
 
 
 class VCritic(nn.Module):
@@ -159,12 +162,18 @@ class ActorVCritic(nn.Module):
                    and cost value estimate.
         """
 
+        # dist = self.actor(obs)
+        # if deterministic:
+        #     action = dist.mean
+        # else:
+        #     action = dist.rsample()
+        # log_prob = dist.log_prob(action).sum(axis=-1)
         dist = self.actor(obs)
         if deterministic:
-            action = dist.mean
+            action = torch.argmax(dist.probs, dim=-1)
         else:
-            action = dist.rsample()
-        log_prob = dist.log_prob(action).sum(axis=-1)
+            action = dist.sample()
+        log_prob = dist.log_prob(action)
         value_r = self.reward_critic(obs)
         value_c = self.cost_critic(obs)
         return action, log_prob, value_r, value_c
@@ -286,6 +295,8 @@ class MultiAgentActor(nn.Module):
                                                                                                    active_masks=
                                                                                                    active_masks if self._use_policy_active_masks
                                                                                                    else None)
+            if self.act.action_type == "Discrete":
+                return action_log_probs, dist_entropy, None, None
             return action_log_probs, dist_entropy, action_mu, action_std
 
         else:

@@ -259,9 +259,13 @@ class SeparatedReplayBuffer(object):
         else:
             self.available_actions = None
 
-        act_shape = get_shape_from_act_space(act_space)
+        if act_space.__class__.__name__ == 'Discrete':
+            act_shape = 1
+            self.actions = torch.zeros(self.episode_length, self.n_rollout_threads, act_shape, dtype=torch.long, device=self.device)
+        else:
+            act_shape = get_shape_from_act_space(act_space)
+            self.actions = torch.zeros(self.episode_length, self.n_rollout_threads, act_shape, device=self.device)
 
-        self.actions = torch.zeros(self.episode_length, self.n_rollout_threads, act_shape, device=self.device)
         self.action_log_probs = torch.zeros(self.episode_length, self.n_rollout_threads, act_shape, device=self.device)
         self.rewards = torch.zeros(self.episode_length, self.n_rollout_threads, 1, device=self.device)
         

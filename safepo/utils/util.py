@@ -43,4 +43,10 @@ def get_shape_from_obs_space(obs_space):
     return obs_space.shape
 
 def get_shape_from_act_space(act_space):
-    return act_space.shape[0]
+    # return act_space.shape[0]
+    if hasattr(act_space, "n"):  # Discrete
+        return act_space.n
+    elif hasattr(act_space, "shape"):  # Box
+        return act_space.shape[0]
+    else:
+        raise NotImplementedError("Unknown action space type")
