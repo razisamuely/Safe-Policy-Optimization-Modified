@@ -1,0 +1,20 @@
+snx -s vpn.bgu.ac.il -u razshmue@vpn
+
+1991 on com sign (even though they asks for 8 digits)
+
+ssh razshmue@slurm.bgu.ac.il
+Rev137tal! cmd 
+sbatch example.sbatch
+sinteractive --gpu 1
+
+
+squeue -u razshmue
+
+
+MAMBA_with_cost_term_debug
+
+
+Kill process 
+scancel 4807387
+Kil all processes 
+scancel -u razshmue
