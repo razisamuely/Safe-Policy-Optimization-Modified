@@ -486,10 +486,7 @@ class Runner:
         self.num_agents = self.envs.num_agents
 
         
-        wandb.define_metric("TotalSteps")
-        wandb.define_metric("reward", step_metric="TotalSteps") 
-        wandb.define_metric("cost", step_metric="TotalSteps")
-        wandb.define_metric("score", step_metric="TotalSteps")
+
 
         torch.autograd.set_detect_anomaly(True)
         torch.backends.cudnn.enabled = True
@@ -531,6 +528,10 @@ class Runner:
             self.trainer.append(tr)
 
     def run(self):
+        wandb.define_metric("steps")
+        wandb.define_metric("main/score", step_metric="steps")
+        wandb.define_metric("main/cost", step_metric="steps") 
+        wandb.define_metric("main/winrate", step_metric="steps")
         self.warmup()
         start = time.time()
         episodes = int(self.config["num_env_steps"]) // self.config["episode_length"] // self.config["n_rollout_threads"]
@@ -582,6 +583,11 @@ class Runner:
 
             total_num_steps = (episode + 1) * self.config["episode_length"] * self.config["n_rollout_threads"]
 
+            # Add after: total_num_steps = (episode + 1) * self.config["episode_length"] * self.config["n_rollout_threads"]
+
+            
+
+
             if (episode % self.config["save_interval"] == 0 or episode == episodes - 1):
                 self.save()
                 
@@ -611,10 +617,16 @@ class Runner:
                 })
                 
                 wandb.log({
-                    "score": np.mean([r.item() for r in done_episodes_rewards]),
-                    "cost": np.mean([c.item() for c in done_episodes_costs]),
-                    "reward": np.mean(win_episode) if win_episode else 0
-                                                    })
+                "main/score": episode_reward.item(),
+                "main/cost": episode_cost.item(),
+                "main/winrate": np.mean(win_episode[-100:]),
+                "steps": total_num_steps
+            })
+
+
+
+
+
                 # Compute average costs for constraint handling
                 aver_episode_costs = torch.stack(done_episodes_costs).mean()
                 self.return_aver_cost(aver_episode_costs)
@@ -922,12 +934,12 @@ if __name__ == '__main__':
     args, cfg_env, cfg_train = multi_agent_args(algo="macpo")
     set_seed(cfg_train.get("seed", -1), cfg_train.get("torch_deterministic", False))
     current_run_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-
+    cost_type = "dead_allies"
     wandb.init(
         project="private-mamba", 
         entity="raz-shmueli-corsound-ai",
-        name=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
-        id=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
+        name=f"safepo_macpo_{cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
+        id=f"safepo_macpo_{cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
     )
 
     if args.write_terminal:

@@ -321,7 +321,7 @@ class SMACShareEnv:
         elif self.cost_type == "debug_constant":
             return self.get_cost_debug_constant(info)
         else:
-            return 0
+            raise ValueError(f"Unknown cost_type: {self.cost_type}")
 
     def get_cost_damage(self):
         """Cost based on damage taken by agents"""
