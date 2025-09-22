@@ -81,7 +81,7 @@ isaac_gym_map = {
 
 smac_map = {
     "3m": {"map_name": "3m", "cost_type": "dead_allies"}, # dead_allies
-    "8m": {"map_name": "8m", "cost_type": "dead_allies"},
+    "8m": {"map_name": "8m", "cost_type": "danger_zone"},
     "25m": {"map_name": "25m", "cost_type": "damage"},
     "2s3z": {"map_name": "2s3z", "cost_type": "damage"},
     "3s5z": {"map_name": "3s5z", "cost_type": "damage"},
@@ -169,7 +169,8 @@ def single_agent_args():
         {"name": "--total-steps", "type": int, "default": 10000000, "help": "Total timesteps of the experiments"},
         {"name": "--steps-per-epoch", "type": int, "default": 20000, "help": "The number of steps to run in each environment per policy rollout"},
         {"name": "--randomize", "type": bool, "default": False, "help": "Wheather to randomize the environments' initial states"},
-        {"name": "--cost-limit", "type": float, "default": 25.0, "help": "cost_lim"},
+        {"name": "--cost-limit", "type": float, "default": None, "help": "cost_lim"},
+        {"name": "--cost-type", "type": str, "default": None, "help": "Type of cost to use in SMAC environments (e.g., dead_allies, damage, proximity, etc.)"},
         {"name": "--lagrangian-multiplier-init", "type": float, "default": 0.001, "help": "initial value of lagrangian multiplier"},
         {"name": "--lagrangian-multiplier-lr", "type": float, "default": 0.035, "help": "learning rate of lagrangian multiplier"},
     ]
@@ -215,7 +216,7 @@ def multi_agent_args(algo):
         {"name": "--experiment", "type": str, "default": "Base", "help": "Experiment name"},
         {"name": "--seed", "type": int, "default":0, "help": "Random seed"},
         {"name": "--model-dir", "type": str, "default": "", "help": "Choose a model dir"},
-        {"name": "--cost-limit", "type": float, "default": 0, "help": "cost_lim"},
+        {"name": "--cost-limit", "type": float, "default": None, "help": "cost_lim"},
         {"name": "--device", "type": str, "default": "cpu", "help": "The device to run the model on"},
         {"name": "--device-id", "type": int, "default": 0, "help": "The device id to run the model on"},
         {"name": "--write-terminal", "type": lambda x: bool(strtobool(x)), "default": True, "help": "Toggles terminal logging"},
@@ -289,7 +290,7 @@ def multi_agent_args(algo):
     elif args.task in smac_map.keys():
         cfg_train.update(cfg_train.get("mamujoco"))  # Use similar config as mujoco
         args.map_name = smac_map[args.task]["map_name"] 
-        args.cost_type = smac_map[args.task]["cost_type"]
+        # args.cost_type = smac_map[args.task]["cost_type"]
     else:
         warn_task_name()
 

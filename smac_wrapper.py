@@ -139,6 +139,11 @@ class SMACShareEnv:
             terminated = True
             info = {}
         
+        if terminated:
+            self.env.reset()
+            self.prev_health = None
+            self.prev_state = None
+            self.prev_kills = 0
         # Store info for advanced cost computation
         self._current_info = info
         costs = self._compute_costs(reward, terminated)
@@ -325,24 +330,17 @@ class SMACShareEnv:
 
     def get_cost_damage(self):
         """Cost based on damage taken by agents"""
-        total_cost = 0
+        total_damage = 0
         current_health = []
         for i in range(self.num_agents):
-            try:
-                unit = self.env.get_unit_by_id(i)
-                health = unit.health / unit.health_max if unit and unit.health > 0 else 0.0
-                current_health.append(health)
-            except:
-                current_health.append(0.0)
-        
-        if self.prev_health is not None:
-            for i in range(self.num_agents):
-                damage_taken = max(0, self.prev_health[i] - current_health[i])
-                if damage_taken > self.cost_threshold:
-                    total_cost += 1.0
-        
-        self.prev_health = current_health
-        return total_cost
+            unit = self.env.get_unit_by_id(i)
+            if unit and unit.health > 0:
+                max_health = unit.health_max + (unit.shield_max if hasattr(unit, 'shield_max') else 0)
+                current_health = unit.health + (unit.shield if hasattr(unit, 'shield') else 0)
+                damage_taken = max_health - current_health
+                total_damage += damage_taken
+
+        return total_damage
 
     def get_cost_death(self):
         """Cost based on agent deaths"""

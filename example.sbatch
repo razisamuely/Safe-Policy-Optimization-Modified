@@ -26,7 +26,7 @@ conda activate safepo
 cd /home/razshmue/workspace/Safe-Policy-Optimization-Modified
 
 # Run the training script
-python safepo/multi_agent/macpo.py --task 3m --total-steps 10000 --cost-type dead_allies
+python safepo/multi_agent/macpo.py --task 3m --total-steps 10000 --cost-type dead_allies --cost-limit 0 --seed 42
 
 # Deactivate the virtual environment
 conda deactivate
