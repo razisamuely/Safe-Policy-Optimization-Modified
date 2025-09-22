@@ -80,8 +80,9 @@ isaac_gym_map = {
 }
 
 smac_map = {
-    "3m": {"map_name": "3m", "cost_type": "dead_allies"}, # dead_allies
-    "8m": {"map_name": "8m", "cost_type": "danger_zone"},
+    "3m": {"map_name": "3m", "cost_type": "None"}, # dead_allies
+    "8m": {"map_name": "8m", "cost_type": "None"},
+    "3s_vs_3z": {"map_name": "3s_vs_3z", "cost_type": "None"},
     "25m": {"map_name": "25m", "cost_type": "damage"},
     "2s3z": {"map_name": "2s3z", "cost_type": "damage"},
     "3s5z": {"map_name": "3s5z", "cost_type": "damage"},
