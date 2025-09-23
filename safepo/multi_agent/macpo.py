@@ -618,7 +618,7 @@ class Runner:
                 
                 wandb.log({
                 "main/score": episode_reward.item(),
-                "main/cost": episode_cost.item(),
+                "main/cost": np.mean([episode_cost.item() for episode_cost in done_episodes_costs]),
                 "main/winrate": np.mean(win_episode[-100:]),
                 "steps": total_num_steps
             })
