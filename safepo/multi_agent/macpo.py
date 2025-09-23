@@ -937,8 +937,8 @@ if __name__ == '__main__':
     wandb.init(
         project="private-mamba", 
         entity="raz-shmueli-corsound-ai",
-        name=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
-        id=f"safepo_macpo_{args.cost_type}_{args.task}_{args.seed}_time_{current_run_time}",
+        name=f"safepo_macpo_{args.cost_type}_cost_limit={args.cost_limit}_{args.task}_{args.seed}_time_{current_run_time}",
+        id=f"safepo_macpo_{args.cost_type}_cost_limit={args.cost_limit}_{args.task}_{args.seed}_time_{current_run_time}",
     )
 
     if args.write_terminal:
