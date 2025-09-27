@@ -226,7 +226,13 @@ def multi_agent_args(algo):
         {"name": "--num-envs", "type": int, "default": None, "help": "The number of parallel game environments"},
         {"name": "--randomize", "type": bool, "default": False, "help": "Wheather to randomize the environments' initial states"},
         {"name": "--cost-type", "type": str, "default": None, "help": "Type of cost to use in SMAC environments (e.g., dead_allies, damage, proximity, etc.)"},
-
+        {"name": "--actor-lr", "type": float, "default": None, "help": "learning rate of actor"},
+        {"name": "--critic-lr", "type": float, "default": None, "help": "learning rate of critic"},
+        {"name": "--entropy-coef", "type": float, "default": None, "help": "entropy coefficient"},
+        {"name": "--clip-param", "type": float, "default": None, "help": "clip parameter"},
+        {"name": "--learning-iters", "type": int, "default": None, "help": "number of learning iters per update"},
+        {"name": "--safety-gamma", "type": float, "default": None, "help": "discount factor for safety value function"},
+        {"name": "--target-kl", "type": float, "default": None, "help": "target_kl for ppo update"},
     ]
     # Create argument parser
     parser = argparse.ArgumentParser(description="RL Policy")
@@ -289,9 +295,28 @@ def multi_agent_args(algo):
     elif args.task in multi_agent_velocity_map.keys() or args.task in multi_agent_goal_tasks:
         pass
     elif args.task in smac_map.keys():
-        cfg_train.update(cfg_train.get("mamujoco"))  # Use similar config as mujoco
+        cfg_train.update(cfg_train.get("smac"))  # Use similar config as mujoco
         args.map_name = smac_map[args.task]["map_name"] 
-        # args.cost_type = smac_map[args.task]["cost_type"]
+        cfg_train["num_env_steps"] = args.total_steps
+        cfg_train["n_rollout_threads"] = args.num_envs
+        cfg_train["n_eval_rollout_threads"] = args.num_envs
+        if args.actor_lr:
+            cfg_train["actor_lr"] = args.actor_lr  
+        if args.critic_lr:
+            cfg_train["critic_lr"] = args.critic_lr  
+        if args.entropy_coef:
+            cfg_train["entropy_coef"] = args.entropy_coef  
+        if args.clip_param:
+            cfg_train["clip_param"] = args.clip_param  
+        if args.learning_iters:
+            cfg_train["learning_iters"] = args.learning_iters  
+        if args.safety_gamma:
+            cfg_train["safety_gamma"] = args.safety_gamma  
+        if args.target_kl:
+            cfg_train["target_kl"] = args.target_kl  
+        if args.cost_limit:
+            cfg_train["cost_limit"] = args.cost_limit  
+                
     else:
         warn_task_name()
 

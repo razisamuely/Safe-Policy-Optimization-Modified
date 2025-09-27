@@ -569,7 +569,7 @@ class Runner:
 
                         # if smac env, then also log win or not
                         if self.config['env_name'] in smac_map.keys():
-                            if isinstance(infos[t], list) and len(infos[t]) > 0 and 'battle_won' in infos[t][0]:
+                            if len(infos[t]) > 0 and 'battle_won' in infos[t][0]:
                                 win_episode.append(sum([i['battle_won'] for i in infos[t]])/len(infos[t]))
 
                 done_episodes_costs_aver = train_episode_costs.mean()
