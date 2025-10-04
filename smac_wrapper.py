@@ -232,6 +232,17 @@ class SMACShareEnv:
         new_deaths = max(0, new_deaths)
         self.prev_deaths = max(0, current_deaths)
         return new_deaths
+    
+    def get_cost_health_loss(self):
+        """Cost based on health lost this step"""
+        total_health_loss = 0
+        for agent_id in range(self.n_agents):
+            current_health = self.get_health(agent_id)
+            prev_health = getattr(self, f"prev_health_{agent_id}", current_health)
+            health_loss = max(0, prev_health - current_health)
+            total_health_loss += health_loss
+            setattr(self, f"prev_health_{agent_id}", current_health)
+        return total_health_loss
 
 
     def get_cost_resource_waste(self, info):
@@ -334,6 +345,10 @@ class SMACShareEnv:
             return self.get_cost_proximity()
         elif self.cost_type == "debug_constant":
             return self.get_cost_debug_constant(info)
+        elif self.cost_type == "dead_allies_incremental":
+            return self.get_cost_dead_allies_incremental(info)
+        elif self.cost_type == "health_loss":
+            return self.get_cost_health_loss()
         else:
             raise ValueError(f"Unknown cost_type: {self.cost_type}")
 
