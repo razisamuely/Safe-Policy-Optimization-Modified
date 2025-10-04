@@ -25,8 +25,8 @@ def objective(trial):
     # === Suggest hyperparameters for this trial ===
     actor_lr      = trial.suggest_float("actor_lr", 3e-5, 3e-3, log=True)
     critic_lr     = trial.suggest_float("critic_lr", 1e-4, 3e-3, log=True)
-    entropy_coef  = trial.suggest_float("entropy_coef", 0.001, 0.05)
-    clip_param    = trial.suggest_float("clip_param", 0.1, 0.3)
+    entropy_coef  = trial.suggest_float("entropy_coef", 0.001, 0.1)
+    clip_param    = trial.suggest_float("clip_param", 0.05, 0.4)
     learning_iters= trial.suggest_int("learning_iters", 10, 20)
     safety_gamma  = trial.suggest_float("safety_gamma", 0.01, 0.5)
     target_kl     = trial.suggest_float("target_kl", 0.005, 0.02)
@@ -54,8 +54,8 @@ def objective(trial):
     # === Build command ===
     cmd = [
         sys.executable, script_path,
-        "--task", "8m",
-        "--total-steps", "3000",
+        "--task", "3m",
+        "--total-steps", "5000000",
         "--num-envs", "3", 
         "--cost-type", "danger_zone",
         "--seed", str(trial.number),
@@ -83,16 +83,35 @@ def objective(trial):
     
     # === Penalize if constraint is violated ===
     if cost > cost_limit:
-        violation_ratio = (cost - cost_limit) / cost_limit
-        return reward * (1 - violation_ratio)
+        violation = (cost - cost_limit)
+        return reward - abs(violation) 
 
     return reward
 
 
 
 if __name__ == "__main__":
-    study = optuna.create_study(direction="maximize")
+    # Use different databases for different experiments
+    experiment_name = "3m_danger_zone"  # Change this for different experiments
+    study_name = f"macpo_{experiment_name}"
+    storage_url = f"sqlite:///optuna_{experiment_name}.db"
+    
+    study = optuna.create_study(
+        study_name=study_name,
+        storage=storage_url,
+        direction="maximize",
+        load_if_exists=True  # Allow multiple workers to share the same study
+    )
+    
+    # Each worker will run up to 1 trial, but they'll coordinate via the database
     study.optimize(objective, n_trials=10)
+    
+    # Print all trials from database
+    print(f"\n=== ALL TRIALS IN DATABASE ===")
+    for trial in study.trials:
+        print(f"Trial {trial.number}: Value={trial.value}, State={trial.state}")
+        print(f"  Params: {trial.params}")
+        print()
     
     if study.trials:
         completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
@@ -100,6 +119,19 @@ if __name__ == "__main__":
             print("Best trial:")
             print(study.best_params)
             print(f"Best value: {study.best_value}")
+            
+            # Save best results to file for easy access
+            import json
+            best_results = {
+                "best_value": study.best_value,
+                "best_params": study.best_params,
+                "best_trial_number": study.best_trial.number,
+                "total_trials": len(study.trials),
+                "completed_trials": len(completed_trials)
+            }
+            with open("best_optuna_results.json", "w") as f:
+                json.dump(best_results, f, indent=2)
+            print("Best results saved to: best_optuna_results.json")
         else:
             print("No trials completed successfully")
     else:
