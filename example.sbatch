@@ -32,7 +32,7 @@ python -c "import torch; print(torch.__version__)"
 cd /home/razshmue/workspace/Safe-Policy-Optimization-Modified
 
 # Run the training script
-python safepo/multi_agent/macpo.py --task 3s_vs_3z --total-steps 10000 --cost-type damage --cost-limit 0 --seed 123
+python safepo/multi_agent/macpo.py --task 3s_vs_3z --total-steps 10000 --cost-type damage --cost-limit 0 --num-envs 5 --seed 123
 
 # Deactivate the virtual environment
 conda deactivate
