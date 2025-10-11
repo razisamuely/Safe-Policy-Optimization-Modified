@@ -33,6 +33,7 @@ class SMACShareEnv:
         self.prev_health = None
         self.prev_state = None
         self.prev_kills = 0
+        self.episode_cost = 0.0
 
     def _get_obs(self):
         obs = self.env.get_obs()
@@ -231,11 +232,16 @@ class SMACShareEnv:
         new_deaths = current_deaths - getattr(self, "prev_deaths", 0)
         new_deaths = max(0, new_deaths)
         self.prev_deaths = max(0, current_deaths)
+        self.episode_cost += new_deaths
 
         if terminated and (self.env.n_enemies - info.get("dead_enemies", 0)) > 0:
+            if new_deaths == 1:
+                return new_deaths
+            # Penalize remaining allies dying at episode end
             total_allies = self.num_agents
             new_deaths = total_allies - current_deaths
-            self.prev_deaths = total_allies  # Update to max    
+            self.prev_deaths = total_allies  # Update to max 
+            self.episode_cost = 0    
         return new_deaths
     
     def get_cost_health_loss(self):
