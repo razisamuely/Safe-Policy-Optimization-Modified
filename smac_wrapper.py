@@ -83,7 +83,7 @@ class SMACShareEnv:
         
         try:
             info = getattr(self, '_current_info', {})
-            team_cost = self.get_cost(info)
+            team_cost = self.get_cost(info, terminated)
             costs.fill(team_cost)
         except Exception as e:
             raise Exception(f"Error computing cost '{self.cost_type}': {e}")
@@ -225,12 +225,17 @@ class SMACShareEnv:
 
         return total_distance / pairs if pairs > 0 else 0
 
-    def get_cost_dead_allies_incremental(self, info):
+    def get_cost_dead_allies_incremental(self, info, terminated):
         """Cost based on NEW deaths this step only"""
         current_deaths = info.get("dead_allies", 0)
         new_deaths = current_deaths - getattr(self, "prev_deaths", 0)
         new_deaths = max(0, new_deaths)
         self.prev_deaths = max(0, current_deaths)
+
+        if terminated and (self.env.n_enemies - info.get("dead_enemies", 0)) > 0:
+            total_allies = self.num_agents
+            new_deaths = total_allies - current_deaths
+            self.prev_deaths = total_allies  # Update to max    
         return new_deaths
     
     def get_cost_health_loss(self):
@@ -323,7 +328,7 @@ class SMACShareEnv:
         """Cost based on a constant value for debugging purposes"""
         return 1.0
 
-    def get_cost(self, info):
+    def get_cost(self, info, terminated):
         """Main cost function - selects based on cost_type"""
         if self.cost_type == "resource_waste":
             return self.get_cost_resource_waste(info)
@@ -346,7 +351,7 @@ class SMACShareEnv:
         elif self.cost_type == "debug_constant":
             return self.get_cost_debug_constant(info)
         elif self.cost_type == "dead_allies_incremental":
-            return self.get_cost_dead_allies_incremental(info)
+            return self.get_cost_dead_allies_incremental(info,terminated)
         elif self.cost_type == "health_loss":
             return self.get_cost_health_loss()
         else:

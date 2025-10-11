@@ -299,7 +299,7 @@ def main():
     parser.add_argument("--model-dir", type=str, required=True, help="Path to model directory")
     parser.add_argument("--config-path", type=str, help="Path to config.json")
     parser.add_argument("--map-name", type=str, default="3m", help="SMAC map name")
-    parser.add_argument("--cost-type", type=str, default="damage", help="Cost type")
+    parser.add_argument("--cost-type", type=str, default="dead_allies_incremental", help="Cost type")
     parser.add_argument("--num-episodes", type=int, default=5, help="Number of episodes to render")
     parser.add_argument("--deterministic", type=bool, default=True, help="Use deterministic actions")
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
@@ -350,3 +350,5 @@ if __name__ == '__main__':
 # safepo/runs/Base/8m/macpo/seed-000-2025-09-01-06-38-11
 # python render_macpo.py --model-dir safepo/runs/Base/8m/macpo/seed-000-2025-09-01-06-38-11/models_seed0 --config-path safepo/runs/Base/8m/macpo/seed-000-2025-09-01-06-38-11/config.json --map-name 8m --num-episodes 3 --deterministic True --save-gifs True --gif-dir rendered_gifs --fps 10
 # python render_macpo.py --model-dir safepo/runs/Base/3m/macpo/seed-000-2025-08-30-14-36-49/models_seed0 --config-path safepo/runs/Base/3m/macpo/seed-000-2025-08-30-14-36-49/config.json --map-name 3m --num-episodes 3 --deterministic True --save-gifs True --gif-dir rendered_gifs --fps 10
+# python render_macpo.py --model-dir safepo/runs/Base/8m/macpo/seed-072-2025-10-01-07-42-32/models_seed0 --config-path safepo/runs/Base/8m/macpo/seed-072-2025-10-01-07-42-32/config.json --map-name 3m --num-episodes 3 --deterministic True --save-gifs True --gif-dir rendered_gifs --fps 10
+# python render_macpo.py --model-dir safepo/runs/Base/8m/macpo/seed-072-2025-10-01-07-42-32/models_seed0 --config-path safepo/runs/Base/3m/macpo/seed-072-2025-10-01-07-42-32/config.json --map-name 3m --num-episodes 3 --deterministic False --save-gifs True --gif-dir rendered_gifs --fps 10
