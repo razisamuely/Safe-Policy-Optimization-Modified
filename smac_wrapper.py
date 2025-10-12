@@ -140,11 +140,11 @@ class SMACShareEnv:
             terminated = True
             info = {}
         
-        if terminated:
-            self.env.reset()
-            self.prev_health = None
-            self.prev_state = None
-            self.prev_kills = 0
+        # if terminated:
+        #     self.env.reset()
+        #     self.prev_health = None
+        #     self.prev_state = None
+        #     self.prev_kills = 0
         # Store info for advanced cost computation
         self._current_info = info
         costs = self._compute_costs(reward, terminated)
@@ -235,7 +235,7 @@ class SMACShareEnv:
         self.episode_cost += new_deaths
 
         if terminated and (self.env.n_enemies - info.get("dead_enemies", 0)) > 0:
-            if new_deaths == 1:
+            if new_deaths > 0:
                 return new_deaths
             # Penalize remaining allies dying at episode end
             total_allies = self.num_agents
