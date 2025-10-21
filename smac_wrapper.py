@@ -125,6 +125,7 @@ class SMACShareEnv:
         self.prev_health = None
         self.prev_state = None
         self.prev_kills = 0
+        self.prev_deaths = 0  # Add this line
         return self._get_obs(), self._get_share_obs(), self._get_avail_actions()
 
     def step(self, actions):
@@ -140,12 +141,9 @@ class SMACShareEnv:
             terminated = True
             info = {}
         
-        # if terminated:
-        #     self.env.reset()
-        #     self.prev_health = None
-        #     self.prev_state = None
-        #     self.prev_kills = 0
-        # Store info for advanced cost computation
+        if terminated:
+            self.env.reset()
+
         self._current_info = info
         costs = self._compute_costs(reward, terminated)
         
@@ -236,12 +234,15 @@ class SMACShareEnv:
 
         if terminated and (self.env.n_enemies - info.get("dead_enemies", 0)) > 0:
             if new_deaths > 0:
+                self.episode_cost = 0 
                 return new_deaths
             # Penalize remaining allies dying at episode end
             total_allies = self.num_agents
             new_deaths = total_allies - current_deaths
-            self.prev_deaths = total_allies  # Update to max 
-            self.episode_cost = 0    
+               
+        
+        if terminated:
+            self.episode_cost = 0
         return new_deaths
     
     def get_cost_health_loss(self):
