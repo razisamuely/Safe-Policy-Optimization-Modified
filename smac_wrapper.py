@@ -142,6 +142,8 @@ class SMACShareEnv:
         
         if terminated:
             self.env.reset()
+            # Don't reset prev_deaths here - let get_cost_dead_allies_incremental handle it
+            # after calculating the termination cost
 
         self._current_info = info
         costs = self._compute_costs(reward, terminated)
@@ -225,16 +227,39 @@ class SMACShareEnv:
 
     def get_cost_dead_allies_incremental(self, info, terminated):
         """Cost based on NEW deaths this step only"""
+        # current_deaths = 5 , prev_deaths = 5 , 
         current_deaths = info.get("dead_allies", 0)
         new_deaths = current_deaths - getattr(self, "prev_deaths", 0)
         new_deaths = max(0, new_deaths)
         self.prev_deaths = max(0, current_deaths)
+        allies_alive = self.num_agents - current_deaths
         
-        # Reset tracking when episode ends
+        # Match working implementation: check if enemies still alive (battle lost)
         if terminated:
-            self.prev_deaths = 0
-        
-        return new_deaths
+            # if battle lost
+            if info.get("battle_won", False) == False:
+                # Battle lost: return survivors penalty
+                cost = new_deaths + allies_alive
+                # Reset prev_deaths for next episode AFTER calculating cost
+                self.prev_deaths = 0
+                # DEBUG: Check for cost > 8
+                if cost > 8.0:
+                    pass
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                return cost
+            else:
+                # Battle won: reset prev_deaths for next episode
+                self.prev_deaths = 0
+                return new_deaths
+        else:
+            return new_deaths
     
     def get_cost_health_loss(self):
         """Cost based on health lost this step"""

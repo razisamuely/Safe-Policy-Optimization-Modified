@@ -534,7 +534,7 @@ class Runner:
         wandb.define_metric("main/winrate", step_metric="steps")
         self.warmup()
         start = time.time()
-        episodes = int(self.config["num_env_steps"]) // self.config["episode_length"] // self.config["n_rollout_threads"]
+        episodes = 10000000 // self.config["episode_length"] // self.config["n_rollout_threads"]
 
         train_episode_rewards = torch.zeros(1, self.config["n_rollout_threads"], device=self.config["device"])
         train_episode_costs = torch.zeros(1, self.config["n_rollout_threads"], device=self.config["device"])
@@ -564,7 +564,22 @@ class Runner:
                     if dones_env[t]:
                         done_episodes_rewards.append(train_episode_rewards[:, t].clone())
                         train_episode_rewards[:, t] = 0
-                        done_episodes_costs.append(train_episode_costs[:, t].clone())
+                        episode_cost_value = train_episode_costs[:, t].clone()
+                        done_episodes_costs.append(episode_cost_value)
+                        
+                        # DEBUG: Check for cost > 8
+                        cost_item = episode_cost_value.item()
+                        if cost_item > 8.0:
+                            print(f"\n🔴 COST > 8 DETECTED in macpo.py!")
+                            print(f"  Episode: {episode}, Step: {step}, Thread: {t}")
+                            print(f"  Cost: {cost_item:.4f}")
+                            if len(infos[t]) > 0:
+                                info = infos[t][0]
+                                print(f"  dead_allies: {info.get('dead_allies', 'N/A')}")
+                                print(f"  dead_enemies: {info.get('dead_enemies', 'N/A')}")
+                                print(f"  battle_won: {info.get('battle_won', 'N/A')}")
+                            import pdb; pdb.set_trace()  # BREAKPOINT
+                        
                         train_episode_costs[:, t] = 0
 
                         # if smac env, then also log win or not
@@ -617,11 +632,11 @@ class Runner:
                 })
                 
                 wandb.log({
-                "main/score": episode_reward.item(),
+                "steps": total_num_steps,
+                "main/score": np.mean([episode_reward.item() for episode_reward in done_episodes_rewards]),
                 "main/cost": np.mean([episode_cost.item() for episode_cost in done_episodes_costs]),
-                "main/winrate": np.mean(win_episode[-100:]),
-                "steps": total_num_steps
-            })
+                "main/winrate": np.mean(win_episode[-100:]) if len(win_episode) > 0 else 0.0,
+            }, step=total_num_steps)
 
 
 
