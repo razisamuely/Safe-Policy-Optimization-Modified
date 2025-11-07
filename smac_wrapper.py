@@ -140,13 +140,13 @@ class SMACShareEnv:
             terminated = True
             info = {}
         
-        if terminated:
-            self.env.reset()
-            # Don't reset prev_deaths here - let get_cost_dead_allies_incremental handle it
-            # after calculating the termination cost
-
+        # Calculate costs BEFORE resetting environment (so we use old episode's info)
         self._current_info = info
         costs = self._compute_costs(reward, terminated)
+        
+        if terminated:
+            self.env.reset()
+            # prev_deaths is reset inside get_cost_dead_allies_incremental after cost calculation
         
         obs = self._get_obs()
         share_obs = self._get_share_obs()
@@ -229,7 +229,16 @@ class SMACShareEnv:
         """Cost based on NEW deaths this step only"""
         # current_deaths = 5 , prev_deaths = 5 , 
         current_deaths = info.get("dead_allies", 0)
-        new_deaths = current_deaths - getattr(self, "prev_deaths", 0)
+        prev_deaths = getattr(self, "prev_deaths", 0)
+        
+        # Detect auto-reset: if current_deaths suddenly dropped to 0 but prev_deaths > 0
+        # and we're not in a terminated state, the env auto-reset (new game started)
+        if (not terminated and prev_deaths > 0 and current_deaths == 0) or ((current_deaths - prev_deaths) < 0):
+            # Environment auto-reset detected - reset prev_deaths for new episode
+            self.prev_deaths = 0
+            return 0  # No cost on reset step
+        
+        new_deaths = current_deaths - prev_deaths
         new_deaths = max(0, new_deaths)
         self.prev_deaths = max(0, current_deaths)
         allies_alive = self.num_agents - current_deaths
