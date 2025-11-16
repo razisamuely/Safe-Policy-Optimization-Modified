@@ -562,6 +562,12 @@ class Runner:
 
                 for t in range(self.config["n_rollout_threads"]):
                     if dones_env[t]:
+                        # Skip logging if connection error occurred
+                        if len(infos[t]) > 0 and infos[t][0].get("connection_error", False):
+                            train_episode_rewards[:, t] = 0
+                            train_episode_costs[:, t] = 0
+                            continue  # Don't append to done_episodes
+
                         done_episodes_rewards.append(train_episode_rewards[:, t].clone())
                         train_episode_rewards[:, t] = 0
                         episode_cost_value = train_episode_costs[:, t].clone()
@@ -569,17 +575,8 @@ class Runner:
                         
                         # DEBUG: Check for cost > 8
                         cost_item = episode_cost_value.item()
-                        if cost_item > 8.0:
-                            print(f"\n🔴 COST > 8 DETECTED in macpo.py!")
-                            print(f"  Episode: {episode}, Step: {step}, Thread: {t}")
-                            print(f"  Cost: {cost_item:.4f}")
-                            if len(infos[t]) > 0:
-                                info = infos[t][0]
-                                print(f"  dead_allies: {info.get('dead_allies', 'N/A')}")
-                                print(f"  dead_enemies: {info.get('dead_enemies', 'N/A')}")
-                                print(f"  battle_won: {info.get('battle_won', 'N/A')}")
-                            import pdb; pdb.set_trace()  # BREAKPOINT
-                        
+
+
                         train_episode_costs[:, t] = 0
 
                         # if smac env, then also log win or not
