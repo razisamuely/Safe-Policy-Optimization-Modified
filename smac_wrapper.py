@@ -8,6 +8,7 @@ class SMACShareEnv:
         self.map_name = map_name
         self.cost_type = cost_type
         self.cost_threshold = cost_threshold
+        self.collision_threshold = 1.0  # Default to match Safe Dreamer
         
         env_info = self.env.get_env_info()
         self.num_agents = env_info["n_agents"]
@@ -280,6 +281,41 @@ class SMACShareEnv:
                 return new_deaths
         else:
             return new_deaths
+
+    def get_cost_collision(self, info):
+        """Cost based on ally-ally proximity (clumping) for MOVING agents only"""
+        moving_agents = []
+
+        # Get last actions to check for movement (2-5 are move commands in SMAC)
+        if hasattr(self.env, "last_action") and self.env.last_action is not None:
+            action_indices = [row.argmax() for row in self.env.last_action]
+        else:
+            # Fallback: check unit movement status if last_action not available
+            action_indices = []
+
+        for i in range(self.num_agents):
+            try:
+                unit = self.env.get_unit_by_id(i)
+                if unit and unit.health > 0:
+                    # In MACPO wrapper, we might not have easy access to last_action buffer
+                    # but we can try to infer if they moved or just use all alive agents for now 
+                    # to keep it simple, OR check if the env has it.
+                    action = action_indices[i] if i < len(action_indices) else 0
+                    if 2 <= action <= 5:
+                        moving_agents.append((unit.pos.x, unit.pos.y))
+            except:
+                continue
+
+        cost = 0
+        n = len(moving_agents)
+        for i in range(n):
+            for j in range(i + 1, n):
+                x1, y1 = moving_agents[i]
+                x2, y2 = moving_agents[j]
+                dist = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+                if dist < self.collision_threshold:
+                    cost += 1
+        return cost
     
     def get_cost_health_loss(self):
         """Cost based on health lost this step"""
@@ -397,6 +433,8 @@ class SMACShareEnv:
             return self.get_cost_dead_allies_incremental(info,terminated)
         elif self.cost_type == "health_loss":
             return self.get_cost_health_loss()
+        elif self.cost_type == "collision":
+            return self.get_cost_collision(info)
         else:
             raise ValueError(f"Unknown cost_type: {self.cost_type}")
 
