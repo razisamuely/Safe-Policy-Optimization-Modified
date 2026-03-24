@@ -1,6 +1,8 @@
 ##### Project Specification #####
 **/runs
 **/results
+sbatch_scripts/generated/
+*.tar.gz
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files

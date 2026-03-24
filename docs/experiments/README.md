@@ -6,7 +6,9 @@ This log tracks the motivation and outcomes of the baseline experiments (MACPO, 
 
 | Experiment ID | Title | Status | Outcome | Key Lesson |
 | :--- | :--- | :--- | :--- | :--- |
-| **01** | [MACPO 8m Collision](./1-macpo-8m-collision/) | **PLANNED** | TBD | Evaluation of reactive baseline on collision cost. |
+| **05** | [Collision Zero-Limit](./5-collision-zero-limit/) | **PENDING** | - | New strictly safe baseline. |
+| **04** | [Collision Fine-Tuning](./4-collision-fine-tuning/) | **PENDING** | - | Ported Baseline (0.1/0.5). |
+| **01** | [Initial Setup](./1-macpo-8m-collision/) | Completed | Success | Environment logic ported. |
 
 ---
 
