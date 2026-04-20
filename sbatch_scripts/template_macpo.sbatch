@@ -2,8 +2,8 @@
 #SBATCH --partition=rtx3090
 #SBATCH --qos=normal
 #SBATCH --time=7-00:00:00
-#SBATCH --job-name=macpo_8m_{COST_LIMIT}_s{SEED}
-#SBATCH --output=sbatch_scripts/generated/macpo_8m_{COST_LIMIT}_s{SEED}-id-%J.out
+#SBATCH --job-name=macpo_{TASK}_{COST_LIMIT}_s{SEED}
+#SBATCH --output=sbatch_scripts/generated/macpo_{TASK}_{COST_LIMIT}_s{SEED}-id-%J.out
 #SBATCH --mail-user=razshmue@post.bgu.ac.il
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --gpus=1
@@ -19,7 +19,6 @@ cd /home/razshmue/workspace/Safe-Policy-Optimization-Modified
 python sbatch_scripts/gpu_keepalive.py > sbatch_scripts/generated/gpu_keepalive_${SLURM_JOBID}.log 2>&1 &
 KEEPALIVE_PID=$!
 
-# Function to cleanup keep-alive on exit
 cleanup() {
     if kill -0 $KEEPALIVE_PID 2>/dev/null; then
         kill $KEEPALIVE_PID
@@ -28,7 +27,7 @@ cleanup() {
 trap cleanup EXIT
 
 PYTHONPATH=. python safepo/multi_agent/macpo.py \
-    --task 8m \
+    --task {TASK} \
     --cost-type collision \
     --cost-limit {COST_LIMIT} \
     --seed {SEED} \
