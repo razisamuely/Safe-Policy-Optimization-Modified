@@ -25,6 +25,7 @@ import torch.nn as nn
 import os
 import sys
 import time
+import wandb
 
 from safepo.common.env import make_ma_mujoco_env, make_ma_isaac_env, make_ma_multi_goal_env
 from safepo.common.popart import PopArt
@@ -299,6 +300,9 @@ class Runner:
             self.trainer.append(tr)
 
     def run(self):
+        wandb.define_metric("steps")
+        wandb.define_metric("main/score", step_metric="steps")
+        wandb.define_metric("main/cost", step_metric="steps")
         self.warmup()
 
         start = time.time()
@@ -365,6 +369,12 @@ class Runner:
                         "Eval/EpCost": eval_costs,
                     }
                 )
+
+                wandb.log({
+                    "steps": total_num_steps,
+                    "main/score": aver_episode_rewards.item(),
+                    "main/cost": aver_episode_costs.item(),
+                })
                 
                 self.logger.log_tabular("Metrics/EpRet", min_and_max=True, std=True)
                 self.logger.log_tabular("Metrics/EpCost", min_and_max=True, std=True)
@@ -642,6 +652,12 @@ if __name__ == '__main__':
     set_np_formatting()
     args, cfg_env, cfg_train = multi_agent_args(algo="mappolag")
     set_seed(cfg_train.get("seed", -1), cfg_train.get("torch_deterministic", False))
+    current_run_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    wandb.init(
+        project="private-mamba",
+        entity="raz-shmueli-corsound-ai",
+        name=f"safepo_mappolag_{args.cost_type}_cost_limit={args.cost_limit}_{args.task}_{args.seed}_time_{current_run_time}",
+    )
     if args.write_terminal:
         train(args=args, cfg_train=cfg_train)
     else:
