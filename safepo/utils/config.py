@@ -90,6 +90,7 @@ smac_map = {
     "1c3s5z": {"map_name": "1c3s5z", "cost_type": "damage"},
     "3s_vs_5z": {"map_name": "3s_vs_5z", "cost_type": "damage"},
     "MMM": {"map_name": "MMM", "cost_type": "damage"},
+    "bane_vs_bane": {"map_name": "bane_vs_bane", "cost_type": "None"},
     "so_many_baneling": {"map_name": "so_many_baneling", "cost_type": "proximity"},
     "3s5z_vs_3s6z": {"map_name": "3s5z_vs_3s6z", "cost_type": "damage"},
 }
