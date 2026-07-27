@@ -65,7 +65,7 @@ layer_N: 2
 std_x_coef: 1
 std_y_coef: 0.5
 
-mamujoco: 
+mamujoco:
   num_env_steps: 10000000
   episode_length: 1000
   n_rollout_threads: 10
@@ -79,3 +79,16 @@ mamujoco:
   use_value_active_masks: True
   use_policy_active_masks: True
   data_chunk_length: 10
+
+smac:
+  layer_N: 1
+  num_env_steps: 5000000
+  episode_length: 1000
+  n_rollout_threads: 5
+  n_eval_rollout_threads: 5
+  hidden_size: 128
+  gamma: 0.99
+  safety_gamma: 0.2
+  target_kl: 0.01
+  learning_iters: 15
+  entropy_coef: 0.01
