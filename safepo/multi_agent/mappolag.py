@@ -303,6 +303,7 @@ class Runner:
         wandb.define_metric("steps")
         wandb.define_metric("main/score", step_metric="steps")
         wandb.define_metric("main/cost", step_metric="steps")
+        wandb.define_metric("main/winrate", step_metric="steps")
         self.warmup()
 
         start = time.time()
@@ -316,6 +317,7 @@ class Runner:
 
             done_episodes_rewards = []
             done_episodes_costs = []
+            win_episode = []
 
             for step in range(self.config["episode_length"]):
                 # Sample actions
@@ -337,6 +339,8 @@ class Runner:
                         train_episode_rewards[:, t] = 0
                         done_episodes_costs.append(train_episode_costs[:, t].clone())
                         train_episode_costs[:, t] = 0
+                        if len(infos[t]) > 0 and 'battle_won' in infos[t][0]:
+                            win_episode.append(sum([i['battle_won'] for i in infos[t]])/len(infos[t]))
 
                 done_episodes_costs_aver = train_episode_costs.mean()
                 data = obs, share_obs, rewards, costs, dones, infos, \
@@ -374,6 +378,7 @@ class Runner:
                     "steps": total_num_steps,
                     "main/score": aver_episode_rewards.item(),
                     "main/cost": aver_episode_costs.item(),
+                    "main/winrate": np.mean(win_episode[-100:]) if len(win_episode) > 0 else 0.0,
                 })
                 
                 self.logger.log_tabular("Metrics/EpRet", min_and_max=True, std=True)
